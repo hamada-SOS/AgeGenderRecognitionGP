@@ -24,16 +24,16 @@ diagonal, line_thickness = None, None
 # Initialize numpy random generator
 np.random.seed(int(time.time()))
 
-# Set video to load
-videos = []
-for file_name in os.listdir('videos'):
-    file_name = 'videos/' + file_name
-    if os.path.isfile(file_name) and file_name.endswith('.mp4'):
-        videos.append(file_name)
-source_path = videos[np.random.randint(len(videos))]
+# # Set video to load
+# videos = []
+# for file_name in os.listdir('videos'):
+#     file_name = 'videos/' + file_name
+#     if os.path.isfile(file_name) and file_name.endswith('.mp4'):
+#         videos.append(file_name)
+# source_path = videos[np.random.randint(len(videos))]
 
 # Create a video capture object to read videos
-cap = cv.VideoCapture(0) #replace the zero with source_path for vedio testing and 0 for live camera
+cap = cv.VideoCapture(1) #replace the zero with source_path for vedio testing and 0 for live camera
 
 # Initialize face detector
 if (face_detector_kind == 'haar'):
@@ -59,17 +59,8 @@ if (age_gender_kind == 'ssrnet'):
     # Initialize age net
     age_net = SSR_net(face_size, stage_num, lambda_local, lambda_d)()
     age_net.load_weights('age_gender_ssrnet/ssrnet_age_3_3_3_64_1.0_1.0.h5')
-else:
-    # Setup global parameters
-    face_size = 227
-    face_padding_ratio = 0.0
-    # Initialize gender detector
-    gender_net = cv.dnn.readNetFromCaffe('age_gender_net/deploy_gender.prototxt', 'age_gender_net/gender_net.caffemodel')
-    # Initialize age detector
-    age_net = cv.dnn.readNetFromCaffe('age_gender_net/deploy_age.prototxt', 'age_gender_net/age_net.caffemodel')
-    # Mean values for gender_net and age_net
-    Genders = ['Male', 'Female']
-    Ages = ['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
+
+
 
 
 def calculateParameters(height_orig, width_orig):
@@ -106,27 +97,6 @@ def findFaces(img, confidence_threshold=0.7):
             padding_w = int(math.floor(0.5 + w * face_padding_ratio))
             x1, y1 = max(0, x - padding_w), max(0, y - padding_h)
             x2, y2 = min(x + w + padding_w, width - 1), min(y + h + padding_h, height - 1)
-            face_boxes.append([x1, y1, x2, y2])
-    else:
-        # Convert input image to 3x300x300, as NN model expects only 300x300 RGB images
-        blob = cv.dnn.blobFromImage(img, 1.0, (300, 300), mean=(104, 117, 123), swapRB=True, crop=False)
-    
-        # Pass blob through model and get detected faces
-        face_net.setInput(blob)
-        detections = face_net.forward()
-        
-        for i in range(detections.shape[2]):
-            confidence = detections[0, 0, i, 2]
-            if (confidence < confidence_threshold):
-                continue
-            x1 = int(detections[0, 0, i, 3] * width)
-            y1 = int(detections[0, 0, i, 4] * height)
-            x2 = int(detections[0, 0, i, 5] * width)
-            y2 = int(detections[0, 0, i, 6] * height)
-            padding_h = int(math.floor(0.5 + (y2 - y1) * face_padding_ratio))
-            padding_w = int(math.floor(0.5 + (x2 - x1) * face_padding_ratio))
-            x1, y1 = max(0, x1 - padding_w), max(0, y1 - padding_h)
-            x2, y2 = min(x2 + padding_w, width - 1), min(y2 + padding_h, height - 1)
             face_boxes.append([x1, y1, x2, y2])
 
     return face_boxes
@@ -165,18 +135,7 @@ def predictAgeGender(faces):
         ages = age_net.predict(blob)
         #  Construct labels
         labels = ['{},{}'.format('Male' if (gender >= 0.5) else 'Female', int(age)) for (gender, age) in zip(genders, ages)]
-    else:
-        # Convert faces to N,3,227,227 blob
-        blob = cv.dnn.blobFromImages(faces, scalefactor=1.0, size=(227, 227),
-                                     mean=(78.4263377603, 87.7689143744, 114.895847746), swapRB=False)
-        # Predict gender
-        gender_net.setInput(blob)
-        genders = gender_net.forward()
-        # Predict age
-        age_net.setInput(blob)
-        ages = age_net.forward()
-        #  Construct labels
-        labels = ['{},{}'.format(Genders[gender.argmax()], Ages[age.argmax()]) for (gender, age) in zip(genders, ages)]
+
     return labels
 
 # Process video
@@ -237,3 +196,10 @@ while cap.isOpened():
 cap.release()
 # out.release()
 cv.destroyAllWindows()
+# Load Models
+img_size = 64
+age_model = SSR_net(image_size=img_size, stage_num=[3, 3, 3], lambda_local=1, lambda_d=1)()
+gender_model = SSR_net_general(image_size=img_size, stage_num=[3, 3, 3], lambda_local=1, lambda_d=1)()
+
+age_model.load_weights('age_gender_ssrnet/ssrnet_age_3_3_3_64_1.0_1.0.h5')
+gender_model.load_weights('age_gender_ssrnet/ssrnet_gender_3_3_3_64_1.0_1.0.h5')

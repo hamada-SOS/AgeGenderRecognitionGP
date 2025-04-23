@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Age & Gender Recognition</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <h1>Age & Gender Recognition</h1>
+
+    <!-- 🔴 Webcam Section -->
+    <section>
+        <h2>Live Webcam</h2>
+        <video id="webcam" autoplay playsinline width="480"></video>
+        <canvas id="canvas" hidden></canvas>
+        <p><strong>Live Prediction:</strong></p>
+        <img id="annotated" width="480" alt="Live prediction overlay"/>
+    </section>
+
+    <hr>
+
+    <!-- 🖼️ Upload Section -->
+    <section>
+        <h2>Upload Image or Video</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <input type="file" name="file" accept="image/*,video/*" required>
+            <button type="submit">Upload & Predict</button>
+        </form>
+        <p><strong>Prediction Result:</strong></p>
+        <img id="resultImage" width="480" alt="Uploaded image result"/>
+    </section>
+
+    <!-- JS Scripts -->
+    <script src="/static/js/webcam.js"></script>
+    <script>
+        // Upload form handler
+        document.getElementById('uploadForm').onsubmit = async function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const res = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            document.getElementById('resultImage').src = data.annotated_image;
+        };
+    </script>
+</body>
+</html>
