@@ -8,7 +8,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 2 MB limit
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 app.wsgi_app = ProxyFix(app.wsgi_app)
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
