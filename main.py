@@ -24,16 +24,16 @@ diagonal, line_thickness = None, None
 # Initialize numpy random generator
 np.random.seed(int(time.time()))
 
-# # Set video to load
-# videos = []
-# for file_name in os.listdir('videos'):
-#     file_name = 'videos/' + file_name
-#     if os.path.isfile(file_name) and file_name.endswith('.mp4'):
-#         videos.append(file_name)
-# source_path = videos[np.random.randint(len(videos))]
+# Set video to load
+videos = []
+for file_name in os.listdir('videos'):
+    file_name = 'videos/' + file_name
+    if os.path.isfile(file_name) and file_name.endswith('.png'):
+        videos.append(file_name)
+source_path = videos[np.random.randint(len(videos))]
 
 # Create a video capture object to read videos
-cap = cv.VideoCapture(1) #replace the zero with source_path for vedio testing and 0 for live camera
+cap = cv.VideoCapture(0) #replace the zero with source_path for vedio testing and 0 for live camera
 
 # Initialize face detector
 if (face_detector_kind == 'haar'):
@@ -59,7 +59,6 @@ if (age_gender_kind == 'ssrnet'):
     # Initialize age net
     age_net = SSR_net(face_size, stage_num, lambda_local, lambda_d)()
     age_net.load_weights('age_gender_ssrnet/ssrnet_age_3_3_3_64_1.0_1.0.h5')
-
 
 
 
@@ -196,10 +195,3 @@ while cap.isOpened():
 cap.release()
 # out.release()
 cv.destroyAllWindows()
-# Load Models
-img_size = 64
-age_model = SSR_net(image_size=img_size, stage_num=[3, 3, 3], lambda_local=1, lambda_d=1)()
-gender_model = SSR_net_general(image_size=img_size, stage_num=[3, 3, 3], lambda_local=1, lambda_d=1)()
-
-age_model.load_weights('age_gender_ssrnet/ssrnet_age_3_3_3_64_1.0_1.0.h5')
-gender_model.load_weights('age_gender_ssrnet/ssrnet_gender_3_3_3_64_1.0_1.0.h5')

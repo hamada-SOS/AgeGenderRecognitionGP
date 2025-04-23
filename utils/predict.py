@@ -1,100 +1,117 @@
-# import cv2
-# import numpy as np
-# from .detect import detect_faces
-
-# def load_models():
-#     from age_gender_ssrnet.SSRNET_model import SSR_net, SSR_net_general
-#     age_model = SSR_net(64, [3, 3, 3], 1, 1)()
-#     age_model.load_weights('age_gender_ssrnet/ssrnet_age_3_3_3_64_1.0_1.0.h5')
-
-#     gender_model = SSR_net_general(64, [3, 3, 3], 1, 1)()
-#     gender_model.load_weights('age_gender_ssrnet/ssrnet_gender_3_3_3_64_1.0_1.0.h5')
-
-#     return age_model, gender_model
-
-# def predict_age_gender(img, age_model, gender_model):
-#     face_boxes = detect_faces(img)
-#     results = []
-
-#     for (x1, y1, x2, y2) in face_boxes:
-#         face = img[y1:y2, x1:x2]
-#         face_resized = cv2.resize(face, (64, 64))
-#         face_input = np.expand_dims(face_resized.astype('float32'), axis=0)
-
-#         # Normalize
-#         face_input /= 255.0
-
-#         gender = gender_model.predict(face_input)[0][0]
-#         age = age_model.predict(face_input)[0][0]
-
-#         label = f"{'Male' if gender > 0.5 else 'Female'}, {int(age)}"
-#         results.append(label)
-
-#         cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-#         cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-
-#     return results, img
+import os
 import cv2
 import numpy as np
-from .detect import detect_faces
+import hashlib
+from age_gender_ssrnet.SSRNET_model import SSR_net, SSR_net_general
 
+# --- Config ---
+face_padding_ratio = 0.10
+face_size = 64
+stage_num = [3, 3, 3]
+lambda_local = 1
+lambda_d = 1
+DEBUG = True  # <<< Set to False to disable logging
+
+# --- Load Haar Cascade ---
+face_cascade = cv2.CascadeClassifier('face_haar/haarcascade_frontalface_alt.xml')
+
+
+def debug_print(msg):
+    if DEBUG:
+        print(msg)
+
+
+# --- Load Models ---
 def load_models():
-    from age_gender_ssrnet.SSRNET_model import SSR_net, SSR_net_general
-    
-    # Load age model
-    age_model = SSR_net(64, [3, 3, 3], 1, 1)()
+    debug_print("Loading models...")
+    age_model = SSR_net(face_size, stage_num, lambda_local, lambda_d)()
     age_model.load_weights('age_gender_ssrnet/ssrnet_age_3_3_3_64_1.0_1.0.h5')
+    print("Age model summary:")
+    age_model.summary()
 
-    # Load gender model
-    gender_model = SSR_net_general(64, [3, 3, 3], 1, 1)()
+    gender_model = SSR_net_general(face_size, stage_num, lambda_local, lambda_d)()
     gender_model.load_weights('age_gender_ssrnet/ssrnet_gender_3_3_3_64_1.0_1.0.h5')
+    print("Gender model summary:")
+    gender_model.summary()
 
+    debug_print("Models loaded successfully.")
     return age_model, gender_model
 
 
-def preprocess_face(face_bgr, target_size=(64, 64)):
-    """
-    Resize and normalize face image for SSR-Net models.
-    """
-    face_resized = cv2.resize(face_bgr, target_size)
-    face_resized = face_resized.astype('float32') / 255.0  # Normalize to [0, 1]
-    face_input = np.expand_dims(face_resized, axis=0)      # Add batch dimension
-    return face_input
+# --- Face Detection ---
+def detect_faces(img, face_padding_ratio=face_padding_ratio):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    detections = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+
+    height, width = img.shape[:2]
+    face_boxes = []
+
+    debug_print(f"Detected {len(detections)} face(s).")
+
+    for (x, y, w, h) in detections:
+        pad_w = int(w * face_padding_ratio)
+        pad_h = int(h * face_padding_ratio)
+        x1 = max(0, x - pad_w)
+        y1 = max(0, y - pad_h)
+        x2 = min(x + w + pad_w, width - 1)
+        y2 = min(y + h + pad_h, height - 1)
+        face_boxes.append((x1, y1, x2, y2))
+
+        debug_print(f"Face box: ({x1}, {y1}), ({x2}, {y2})")
+
+    return face_boxes
 
 
-def predict_age_gender(img_bgr, age_model, gender_model):
-    """
-    Detects faces, runs age & gender prediction, and returns:
-    - list of labels
-    - annotated image
-    """
-    face_boxes = detect_faces(img_bgr)
+# --- Face Preprocessing ---
+def preprocess_faces(faces_bgr):
+    blob = np.empty((len(faces_bgr), face_size, face_size, 3), dtype='float32')
+    for i, face in enumerate(faces_bgr):
+        resized = cv2.resize(face, (face_size, face_size))
+        normalized = cv2.normalize(resized, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+        blob[i] = normalized
+        checksum = hashlib.md5(blob[i].tobytes()).hexdigest()
+        debug_print(f"[Face {i}] Shape: {resized.shape}, Checksum: {checksum}")
+    return blob
+
+
+# --- Main Prediction ---
+def predict_age_gender(image_bgr, age_model, gender_model):
+    face_boxes = detect_faces(image_bgr)
     labels = []
 
-    for i, (x1, y1, x2, y2) in enumerate(face_boxes):
-        face_bgr = img_bgr[y1:y2, x1:x2]
-        
-        # Validate face area
-        if face_bgr.size == 0:
-            continue
+    if not face_boxes:
+        debug_print("No faces detected.")
+        return labels, image_bgr
 
-        face_input = preprocess_face(face_bgr)
+    faces_bgr = [image_bgr[y1:y2, x1:x2] for (x1, y1, x2, y2) in face_boxes]
+    valid_faces = [face for face in faces_bgr if face.size > 0]
 
-        # Predictions
-        gender_pred = gender_model.predict(face_input)[0][0]
-        age_pred = age_model.predict(face_input)[0][0]
+    debug_print(f"Valid faces for prediction: {len(valid_faces)}")
 
-        # Debug print (optional)
-        print(f"[Face {i}] Gender raw: {gender_pred:.2f}, Age raw: {age_pred:.2f}")
+    if not valid_faces:
+        debug_print("All detected face crops were invalid.")
+        return labels, image_bgr
 
-        gender_label = "Male" if gender_pred >= 0.5 else "Female"
-        age_label = int(round(age_pred))
+    face_inputs = preprocess_faces(valid_faces)
+
+    genders = gender_model.predict(face_inputs)
+    ages = age_model.predict(face_inputs)
+
+    for i, ((x1, y1, x2, y2), gender, age) in enumerate(zip(face_boxes, genders, ages)):
+        gender_label = "Male" if gender[0] >= 0.5 else "Female"
+        age_label = int(round(age[0]))
         label = f"{gender_label}, {age_label}"
         labels.append(label)
 
-        # Draw bounding box and label on the image
-        cv2.rectangle(img_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.putText(img_bgr, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX,
+        debug_print(f"[Face {i}] Gender: {gender[0]:.2f}, Age: {age[0]:.2f}, Label: {label}")
+
+        # Draw bounding box and label on image
+        cv2.rectangle(image_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        cv2.putText(image_bgr, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX,
                     0.6, (0, 0, 255), 2)
 
-    return labels, img_bgr
+    # Optional: frame hash for debug
+    frame_hash = hashlib.md5(image_bgr.tobytes()).hexdigest()
+    debug_print(f"Frame checksum: {frame_hash}")
+
+    return labels, image_bgr

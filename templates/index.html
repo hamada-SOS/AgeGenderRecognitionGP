@@ -11,10 +11,22 @@
     <!-- 🔴 Webcam Section -->
     <section>
         <h2>Live Webcam</h2>
+        <!-- Webcam stream -->
         <video id="webcam" autoplay playsinline width="480"></video>
+        
+        <!-- Debug canvas showing raw frame -->
+        <p><strong>Debug Webcam Feed:</strong></p>
+        <canvas id="debugCanvas" width="480" height="360" style="border:1px solid #ccc;"></canvas>
+
+        <!-- Hidden canvas used for grabbing image frames -->
         <canvas id="canvas" hidden></canvas>
+
+        <!-- Predicted result image -->
         <p><strong>Live Prediction:</strong></p>
         <img id="annotated" width="480" alt="Live prediction overlay"/>
+
+        <!-- Live prediction label -->
+        <p><strong>Labels:</strong> <span id="liveResult">Waiting...</span></p>
     </section>
 
     <hr>
