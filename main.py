@@ -58,7 +58,7 @@ if (age_gender_kind == 'ssrnet'):
     gender_net.load_weights('age_gender_ssrnet/ssrnet_gender_3_3_3_64_1.0_1.0.h5')
     # Initialize age net
     age_net = SSR_net(face_size, stage_num, lambda_local, lambda_d)()
-    age_net.load_weights('age_gender_ssrnet/ssrnet_age_3_3_3_64_1.0_1.0.h5')
+    age_net.load_weights('ssrnet_3_3_3_64_1.0_1.0.h5')
 
 
 

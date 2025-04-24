@@ -3,6 +3,9 @@ import cv2
 import numpy as np
 import hashlib
 from age_gender_ssrnet.SSRNET_model import SSR_net, SSR_net_general
+from facenet_pytorch import MTCNN
+import torch
+
 
 # --- Config ---
 face_padding_ratio = 0.10
@@ -13,8 +16,9 @@ lambda_d = 1
 DEBUG = True  # <<< Set to False to disable logging
 
 # --- Load Haar Cascade ---
-face_cascade = cv2.CascadeClassifier('face_haar/haarcascade_frontalface_alt.xml')
-
+face_cascade = cv2.CascadeClassifier('face_haar/lbpcascade_frontalface_improved.xml')
+# -- Load MTCNN
+mtcnn = MTCNN(keep_all=True, device='cuda' if torch.cuda.is_available() else 'cpu')
 
 def debug_print(msg):
     if DEBUG:
@@ -38,28 +42,58 @@ def load_models():
     return age_model, gender_model
 
 
-# --- Face Detection ---
+# # --- Face Detection 1 ---
+# def detect_faces(img, face_padding_ratio=face_padding_ratio):
+#     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+#     detections = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+
+#     height, width = img.shape[:2]
+#     face_boxes = []
+
+#     debug_print(f"Detected {len(detections)} face(s).")
+
+#     for (x, y, w, h) in detections:
+#         pad_w = int(w * face_padding_ratio)
+#         pad_h = int(h * face_padding_ratio)
+#         x1 = max(0, x - pad_w)
+#         y1 = max(0, y - pad_h)
+#         x2 = min(x + w + pad_w, width - 1)
+#         y2 = min(y + h + pad_h, height - 1)
+#         face_boxes.append((x1, y1, x2, y2))
+
+#         debug_print(f"Face box: ({x1}, {y1}), ({x2}, {y2})")
+
+#     return face_boxes
+
+
+# # --- Face Detection 2 ---
+
 def detect_faces(img, face_padding_ratio=face_padding_ratio):
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    detections = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+    boxes, _ = mtcnn.detect(img)
 
-    height, width = img.shape[:2]
     face_boxes = []
+    height, width = img.shape[:2]
 
-    debug_print(f"Detected {len(detections)} face(s).")
+    if boxes is None:
+        debug_print("No faces detected by MTCNN.")
+        return face_boxes
 
-    for (x, y, w, h) in detections:
-        pad_w = int(w * face_padding_ratio)
-        pad_h = int(h * face_padding_ratio)
-        x1 = max(0, x - pad_w)
-        y1 = max(0, y - pad_h)
-        x2 = min(x + w + pad_w, width - 1)
-        y2 = min(y + h + pad_h, height - 1)
+    debug_print(f"Detected {len(boxes)} face(s) with MTCNN.")
+
+    for box in boxes:
+        x1, y1, x2, y2 = map(int, box)
+        pad_w = int((x2 - x1) * face_padding_ratio)
+        pad_h = int((y2 - y1) * face_padding_ratio)
+        x1 = max(0, x1 - pad_w)
+        y1 = max(0, y1 - pad_h)
+        x2 = min(width - 1, x2 + pad_w)
+        y2 = min(height - 1, y2 + pad_h)
         face_boxes.append((x1, y1, x2, y2))
 
-        debug_print(f"Face box: ({x1}, {y1}), ({x2}, {y2})")
-
     return face_boxes
+
+
+
 
 
 # --- Face Preprocessing ---
