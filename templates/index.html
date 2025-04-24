@@ -11,21 +11,12 @@
     <!-- 🔴 Webcam Section -->
     <section>
         <h2>Live Webcam</h2>
-        <!-- Webcam stream -->
         <video id="webcam" autoplay playsinline width="480"></video>
-        
-        <!-- Debug canvas showing raw frame -->
         <p><strong>Debug Webcam Feed:</strong></p>
         <canvas id="debugCanvas" width="480" height="360" style="border:1px solid #ccc;"></canvas>
-
-        <!-- Hidden canvas used for grabbing image frames -->
         <canvas id="canvas" hidden></canvas>
-
-        <!-- Predicted result image -->
         <p><strong>Live Prediction:</strong></p>
         <img id="annotated" width="480" alt="Live prediction overlay"/>
-
-        <!-- Live prediction label -->
         <p><strong>Labels:</strong> <span id="liveResult">Waiting...</span></p>
     </section>
 
@@ -42,19 +33,83 @@
         <img id="resultImage" width="480" alt="Uploaded image result"/>
     </section>
 
-    <!-- JS Scripts -->
+    <hr>
+
+    <!-- 🎥 Video Frame-by-Frame Prediction -->
+    <section>
+        <h2>Process Video Frame-by-Frame</h2>
+        <form id="videoForm" enctype="multipart/form-data">
+            <input type="file" name="video" accept="video/*" required>
+            <button type="submit">Upload & Process Video</button>
+        </form>
+
+        <!-- Loader + Progress Bar -->
+        <div id="loader" style="display:none; font-weight: bold;">
+            ⏳ Processing video... <br>
+            <progress id="progressBar" value="0" max="100" style="width: 80%; height: 20px;"></progress><br>
+            <span id="progressText">Initializing...</span>
+        </div>
+
+        <p><strong>Processed Video:</strong></p>
+        <video id="processedVideo" width="480" controls></video>
+        <br>
+        <a id="downloadLink" href="#" download style="display:none;">⬇️ Download Processed Video</a>
+    </section>
+
+    <!-- Scripts -->
     <script src="/static/js/webcam.js"></script>
     <script>
-        // Upload form handler
         document.getElementById('uploadForm').onsubmit = async function (e) {
             e.preventDefault();
             const formData = new FormData(this);
-            const res = await fetch('/upload', {
+            const res = await fetch('/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            document.getElementById('resultImage').src = data.annotated_image;
+        };
+
+        document.getElementById('videoForm').onsubmit = async function (e) {
+            e.preventDefault();
+
+            const loader = document.getElementById('loader');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const downloadLink = document.getElementById('downloadLink');
+
+            loader.style.display = 'block';
+            downloadLink.style.display = 'none';
+            progressBar.value = 0;
+            progressText.innerText = "Starting processing...";
+
+            const formData = new FormData(this);
+            const res = await fetch('/process-video', {
                 method: 'POST',
                 body: formData
             });
+
             const data = await res.json();
-            document.getElementById('resultImage').src = data.annotated_image;
+            const totalFrames = data.total_frames;
+            const duration = data.duration;
+
+            // Simulated progress bar
+            let currentFrame = 0;
+            const interval = setInterval(() => {
+                currentFrame++;
+                const percent = Math.min((currentFrame / totalFrames) * 100, 100);
+                progressBar.value = percent.toFixed(1);
+
+                const timeLeft = Math.max(0, duration - (currentFrame / (totalFrames / duration)));
+                progressText.innerText = `Progress: ${percent.toFixed(1)}% — Est. Time Left: ${Math.ceil(timeLeft)}s`;
+
+                if (percent >= 100) {
+                    clearInterval(interval);
+                    loader.style.display = 'none';
+                    document.getElementById('processedVideo').scrollIntoView({ behavior: 'smooth' });
+                }
+            }, duration * 10);
+
+            document.getElementById('processedVideo').src = data.video_url;
+            downloadLink.href = data.video_url;
+            downloadLink.style.display = 'inline';
         };
     </script>
 </body>
