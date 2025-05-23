@@ -23,16 +23,16 @@ This project is a lightweight web application that utilizes deep learning to est
    git clone https://github.com/hamada-SOS/AgeGenderRecognitionGP.git
    cd AgeGenderRecognitionGP
 2.**Create a Virtual Environment (Optional but recommended)**:
-  ```bash
-  python -m venv venv
-  source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 3.**Install Dependencies**:
-  ```bash
-  pip install -r requirements.txt
+   ```bash
+   pip install -r requirements.txt
 ```
 
 ## Usage
-```
+   ```
 flask run
 ```
