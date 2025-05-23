@@ -26,7 +26,7 @@ setInterval(() => {
 
     const dataURL = canvas.toDataURL('image/jpeg');
     socket.emit('frame', dataURL);
-  }
+  } 
 }, 1000);
 
 // Receive prediction from server
