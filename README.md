@@ -1,6 +1,6 @@
 # Age & Gender Recognition Web App
 
-This project is a lightweight web application that utilizes deep learning to estimate the age and gender of individuals from facial images. Built with Flask and powered by the SSR-Net model, it offers real-time predictions through a simple and intuitive web interface.
+This project is a lightweight web application that utilizes deep learning to estimate the age and gender of individuals from facial images. Built with Flask and powered by the CNN-Net model, it offers real-time predictions through a simple and intuitive web interface.
 
 ## 👥 Authors
 
