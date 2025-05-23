@@ -2,7 +2,7 @@ import os
 import cv2
 import numpy as np
 import hashlib
-from age_gender_ssrnet.SSRNET_model import SSR_net, SSR_net_general
+from models.Model_net import Age_net, Gender_net
 from facenet_pytorch import MTCNN
 import torch
 
@@ -28,13 +28,13 @@ def debug_print(msg):
 # --- Load Models ---
 def load_models():
     debug_print("Loading models...")
-    age_model = SSR_net(face_size, stage_num, lambda_local, lambda_d)()
-    age_model.load_weights('age_gender_ssrnet/ssrnet_age_3_3_3_64_1.0_1.0.h5')
+    age_model = Age_net(face_size, stage_num, lambda_local, lambda_d)()
+    age_model.load_weights('models/age_model1.h5')
     print("Age model summary:")
     age_model.summary()
 
-    gender_model = SSR_net_general(face_size, stage_num, lambda_local, lambda_d)()
-    gender_model.load_weights('age_gender_ssrnet/ssrnet_gender_3_3_3_64_1.0_1.0.h5')
+    gender_model = Gender_net(face_size, stage_num, lambda_local, lambda_d)()
+    gender_model.load_weights('models/gender_model1.h5')
     print("Gender model summary:")
     gender_model.summary()
 

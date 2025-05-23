@@ -18,7 +18,7 @@ sys.setrecursionlimit(2 ** 20)
 np.random.seed(2 ** 10)
 
 
-class SSR_net:
+class Age_net:
     def __init__(self, image_size, stage_num, lambda_local, lambda_d):
         # Check the image data format
         if K.image_data_format() == "channels_first":
@@ -174,7 +174,7 @@ class SSR_net:
 
         return model
 
-class SSR_net_general:
+class Gender_net:
     def __init__(self, image_size, stage_num, lambda_local, lambda_d):
         
         if K.image_data_format() == "channels_first":  # Updated line

@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+from flask_socketio import SocketIO, emit
 from utils.predict import predict_age_gender, load_models
 import cv2
 import numpy as np
@@ -9,6 +10,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 app.wsgi_app = ProxyFix(app.wsgi_app)
+socketio = SocketIO(app, cors_allowed_origins="*")
+
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -29,10 +32,10 @@ def upload():
     cv2.imwrite(out_path, annotated)
     return jsonify({'results': results, 'annotated_image': out_path})
 
-@app.route('/predict-frame', methods=['POST'])
-def predict_frame():
+
+@socketio.on('frame')
+def handle_frame(data_url):
     try:
-        data_url = request.form['frame']
         encoded_data = data_url.split(',')[1]
         nparr = np.frombuffer(base64.b64decode(encoded_data), np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -41,10 +44,11 @@ def predict_frame():
         results, annotated = predict_age_gender(image, age_model, gender_model)
         _, buffer = cv2.imencode('.jpg', annotated)
         annotated_base64 = base64.b64encode(buffer).decode('utf-8')
-        return jsonify({'results': results, 'annotated': annotated_base64})
+        emit('prediction', {'results': results, 'annotated': annotated_base64})
     except Exception as e:
-        print("predict-frame error:", e)
-        return jsonify({'error': 'Could not process frame'}), 500
+        print("WebSocket frame error:", e)
+        emit('error', {'error': str(e)})
+
 
 @app.route('/process-video', methods=['POST'])
 def process_video():
@@ -93,4 +97,4 @@ def process_video():
     })
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    socketio.run(app, debug=True)
